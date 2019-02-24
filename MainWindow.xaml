@@ -9,6 +9,7 @@
         ResizeMode="NoResize"
         Left="{Binding WindowLeft,Mode=TwoWay}"
         Top="{Binding WindowTop,Mode=TwoWay}"
+        Topmost="True"
         Loaded="Window_Loaded"
         Deactivated="Window_Deactivated"
         MouseRightButtonDown="Window_MouseRightButtonDown">

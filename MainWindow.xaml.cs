@@ -17,7 +17,7 @@ namespace AppSearch
     /// </summary>
     public partial class MainWindow : Window
     {
-        private bool hideOnStartup;
+        private bool hideOnStartup, keepActivated;
         private string[] source;
         private ViewModel viewModel;
         private HotKey showHotKey;
@@ -71,6 +71,7 @@ namespace AppSearch
 
             Show();
             tbxSearchKey.Focus();
+            KeepActivated();
 
             await LoadAllAppsSlowAsync();
         }
@@ -131,7 +132,16 @@ namespace AppSearch
 
             if (e.Key == Key.Enter && viewModel.SelectedAppIndex != -1)
             {
-                Process.Start(viewModel.SearchApps[viewModel.SelectedAppIndex].FullPath);
+                try
+                {
+                    TryHide();
+                    Process.Start(viewModel.SearchApps[viewModel.SelectedAppIndex].FullPath);
+                }
+                catch (Exception exc)
+                {
+                    MessageBox.Show(exc.ToString(), "Process starting error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    Show();
+                }
             }
             else if (e.Key == Key.Down && viewModel?.SelectedAppIndex != -1)
             {
@@ -166,8 +176,22 @@ namespace AppSearch
             if (hideOnStartup) TryHide();
         }
 
+        private async void KeepActivated()
+        {
+            keepActivated = true;
+            
+            while (keepActivated)
+            {
+                Activate();
+
+                await Task.Delay(100);
+            }
+        }
+
         private void TryHide()
         {
+            keepActivated = false;
+
             if (showHotKey.RegistrationSucessful) Hide();
         }
 
