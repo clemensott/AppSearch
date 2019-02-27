@@ -31,7 +31,8 @@ namespace AppSearch
             Option keyOpt = new Option("k", "searchKey", "SearchKey set on startup", false, 1, 1);
             Option hkOpt = new Option("hk", "hotKey", "HotKey the show window", true, -1, 1);
 
-            OptionParseResult result = new Options(showOpt, sourcewOpt, keyOpt, hkOpt).Parse(Environment.GetCommandLineArgs().Skip(1));
+            OptionParseResult result = new Options(showOpt, sourcewOpt, keyOpt, hkOpt)
+                .Parse(Environment.GetCommandLineArgs().Skip(1));
 
             string searchKey = string.Empty;
             OptionParsed p;
@@ -39,7 +40,7 @@ namespace AppSearch
             if (result.TryGetFirstValidOptionParseds(keyOpt, out p)) searchKey = p.Values[0];
 
             source = result.GetValidOptionParseds(sourcewOpt).SelectMany(o => o.Values).ToArray();
-            showHotKey = GetHotKey(result.GetValidOptionParseds(hkOpt).First());
+            showHotKey = GetHotKey(result.GetValidOptionParseds(hkOpt).First().Values);
 
             DataContext = viewModel = new ViewModel()
             {
@@ -51,13 +52,13 @@ namespace AppSearch
             LoadAllAppsFastAsync();
         }
 
-        private HotKey GetHotKey(OptionParsed parsed)
+        private HotKey GetHotKey(IEnumerable<string> parts)
         {
-            string keyString = parsed.Values[0];
+            string keyString = parts.FirstOrDefault();
             int allModifier = 0;
             Key key = (Key)Enum.Parse(typeof(Key), keyString, true);
 
-            foreach (string modifierString in parsed.Values.Skip(1).Select(v => v.ToLower()))
+            foreach (string modifierString in parts.Skip(1).Select(v => v.ToLower()))
             {
                 allModifier += (int)Enum.Parse(typeof(KeyModifier), modifierString, true);
             }
@@ -149,7 +150,8 @@ namespace AppSearch
             }
             else if (e.Key == Key.Up && viewModel?.SelectedAppIndex != -1)
             {
-                viewModel.SelectedAppIndex = (viewModel.SelectedAppIndex - 1 + viewModel.SearchApps.Length) % viewModel.SearchApps.Length;
+                int length = viewModel.SearchApps.Length;
+                viewModel.SelectedAppIndex = (viewModel.SelectedAppIndex - 1 + length) % length;
             }
             else if (e.Key == Key.Escape)
             {
@@ -179,7 +181,7 @@ namespace AppSearch
         private async void KeepActivated()
         {
             keepActivated = true;
-            
+
             while (keepActivated)
             {
                 Activate();
