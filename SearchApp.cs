@@ -1,23 +1,71 @@
-﻿using System;
+﻿using StdOttFramework;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Windows;
-using System.Windows.Media;
+using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 
 namespace AppSearch
 {
     internal class SearchApp : INotifyPropertyChanged
     {
-        private int width, height;
-        private Array pixels;
-        private WriteableBitmap thumbnail;
+        private static readonly object fileThumbnailLockObj = new object(), folderThumbnailLockObj = new object();
+        private static BitmapSource fileIco, folderIco;
+
+        public static BitmapSource GenericFileThumbnail
+        {
+            get
+            {
+                if (fileIco != null) return fileIco;
+
+                lock (fileThumbnailLockObj)
+                {
+                    if (fileIco != null) return fileIco;
+
+                    fileIco = LoadPicture("genericFileThumbnail.png");
+
+                    return fileIco;
+                }
+            }
+        }
+
+        public static BitmapSource GenericFolderThumbnail
+        {
+            get
+            {
+                if (folderIco != null) return folderIco;
+
+                lock (folderThumbnailLockObj)
+                {
+                    if (folderIco != null) return folderIco;
+
+                    return folderIco = LoadPicture("genericFolderThumbnail.png");
+                }
+            }
+        }
+
+        private static BitmapImage LoadPicture(string fileName)
+        {
+            try
+            {
+                string path = Utils.GetFullPath(fileName);
+                return new BitmapImage(new Uri(path));
+            }
+            catch
+            {
+                return new BitmapImage();
+            }
+        }
+
+        private BitmapSource thumbnail;
         private string fullPath, name;
 
-        public WriteableBitmap Thumbnail
+        public bool IsThumbnailLoaded => Thumbnail != GenericFileThumbnail;
+
+        public BitmapSource Thumbnail
         {
             get { return thumbnail; }
             private set
@@ -53,28 +101,11 @@ namespace AppSearch
             }
         }
 
-        private SearchApp(string path)
+        public SearchApp(string path)
         {
             FullPath = path;
-            Name = Path.GetFileNameWithoutExtension(path);
-        }
-
-        public void LoadRawData()
-        {
-            Bitmap bmp = Icon.ExtractAssociatedIcon(FullPath).ToBitmap();
-            width = bmp.Width;
-            height = bmp.Height;
-            pixels = GetPixelsData(bmp).ToArray();
-        }
-
-        public void LoadThumbnail()
-        {
-            PixelFormat format = PixelFormats.Pbgra32;
-            BitmapPalette palette = BitmapPalettes.BlackAndWhite;
-            Int32Rect rect = new Int32Rect(0, 0, width, height);
-
-            Thumbnail = new WriteableBitmap(width, height, 96, 96, format, palette);
-            Thumbnail.WritePixels(rect, pixels, width * 4, 0);
+            Name = Path.GetFileName(path);
+            Thumbnail = GenericFileThumbnail;
         }
 
         public static IEnumerable<byte> GetPixelsData(Bitmap bmp)
@@ -99,26 +130,19 @@ namespace AppSearch
             }
         }
 
-        public static  SearchApp Simple(string path)
+        public void LoadThumbnail()
         {
-            return new SearchApp(path);
-        }
+            if (IsThumbnailLoaded) return;
 
-        public static SearchApp WithData(string path)
-        {
-            SearchApp app = new SearchApp(path);
-            app.LoadRawData();
-
-            return app;
-        }
-
-        public static SearchApp Complete(string path)
-        {
-            SearchApp app = new SearchApp(path);
-            app.LoadRawData();
-            app.LoadThumbnail();
-
-            return app;
+            if (File.Exists(FullPath))
+            {
+                using (Icon sysicon = Icon.ExtractAssociatedIcon(FullPath))
+                {
+                    Thumbnail = Imaging.CreateBitmapSourceFromHIcon(sysicon.Handle,
+                         Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                }
+            }
+            else Thumbnail = GenericFolderThumbnail;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -127,6 +151,5 @@ namespace AppSearch
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
-
     }
 }

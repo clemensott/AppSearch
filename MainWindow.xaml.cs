@@ -1,4 +1,5 @@
-﻿using StdOttFramework.Hotkey;
+﻿using Shell32;
+using StdOttFramework.Hotkey;
 using StdOttStandard.CommendlinePaser;
 using System;
 using System.Collections.Generic;
@@ -18,7 +19,7 @@ namespace AppSearch
     public partial class MainWindow : Window
     {
         private bool hideOnStartup, keepActivated;
-        private string[] source;
+        private string[] sources;
         private ViewModel viewModel;
         private HotKey showHotKey;
 
@@ -38,7 +39,7 @@ namespace AppSearch
             if (result.TryGetFirstValidOptionParseds(showOpt, out p)) hideOnStartup = true;
             if (result.TryGetFirstValidOptionParseds(keyOpt, out p)) searchKey = p.Values[0];
 
-            source = result.GetValidOptionParseds(sourcewOpt).SelectMany(o => o.Values).ToArray();
+            sources = result.GetValidOptionParseds(sourcewOpt).SelectMany(o => o.Values).ToArray();
             showHotKey = GetHotKey(result.GetValidOptionParseds(hkOpt).First());
 
             DataContext = viewModel = new ViewModel()
@@ -48,7 +49,7 @@ namespace AppSearch
 
             showHotKey.Pressed += ShowHotKey_PressedAsync;
 
-            LoadAllAppsFastAsync();
+            UpdateAllApps();
         }
 
         private HotKey GetHotKey(OptionParsed parsed)
@@ -65,54 +66,28 @@ namespace AppSearch
             return new HotKey(key, (KeyModifier)allModifier);
         }
 
-        private async void ShowHotKey_PressedAsync(object sender, KeyPressedEventArgs e)
+        private void ShowHotKey_PressedAsync(object sender, KeyPressedEventArgs e)
         {
-            viewModel.SearchKey = string.Empty;
-
             Show();
             tbxSearchKey.Focus();
             KeepActivated();
 
-            await LoadAllAppsSlowAsync();
+            UpdateAllApps();
         }
 
-        private async Task LoadAllAppsFastAsync()
+        public void UpdateAllApps()
         {
-            SearchApp[] allApps;
-            viewModel.AllApps = allApps = await Task.Run(new Func<SearchApp[]>(GetAllAppsSimple));
+            string[] files = sources.SelectMany(a => GetFiles(a)).Where(IsNotHidden).Distinct().ToArray();
 
-            await Task.Run(() => Parallel.ForEach(allApps, a => a.LoadRawData()));
+            foreach (SearchApp app in viewModel.AllApps.Where(a => !files.Contains(a.FullPath)).ToArray())
+            {
+                viewModel.AllApps.Remove(app);
+            }
 
-            foreach (SearchApp app in allApps) app.LoadThumbnail();
-        }
+            SearchApp[] newApps = files.Where(f => viewModel.AllApps.All(a => a.FullPath != f)).Select(f => new SearchApp(f)).ToArray();
+            foreach (SearchApp app in newApps) viewModel.AllApps.Add(app);
 
-        private SearchApp[] GetAllAppsSimple()
-        {
-            string[] files = source.SelectMany(a => GetFiles(a)).Where(IsNotHidden).Distinct().ToArray();
-            SearchApp[] allApps = new SearchApp[files.Length];
-
-            Parallel.For(0, files.Length, (i) => allApps[i] = SearchApp.Simple(files[i]));
-
-            return allApps;
-        }
-
-        private async Task LoadAllAppsSlowAsync()
-        {
-            SearchApp[] allApps = await Task.Run(new Func<SearchApp[]>(GetAllAppsWithData));
-
-            foreach (SearchApp app in allApps) app.LoadThumbnail();
-
-            viewModel.AllApps = allApps;
-        }
-
-        private SearchApp[] GetAllAppsWithData()
-        {
-            string[] files = source.SelectMany(a => GetFiles(a)).Where(IsNotHidden).Distinct().ToArray();
-            SearchApp[] allApps = new SearchApp[files.Length];
-
-            Parallel.For(0, files.Length, (i) => allApps[i] = SearchApp.WithData(files[i]));
-
-            return allApps;
+            viewModel.RaiseSearchAppsChanged();
         }
 
         private static IEnumerable<string> GetFiles(string path)
@@ -130,12 +105,20 @@ namespace AppSearch
         {
             e.Handled = true;
 
-            if (e.Key == Key.Enter && viewModel.SelectedAppIndex != -1)
+            int selectedIndex = viewModel?.SelectedAppIndex ?? -1;
+            SearchApp selectedApp = viewModel.SelectedApp;
+
+            if (e.Key == Key.Enter && selectedApp != null)
             {
                 try
                 {
                     TryHide();
-                    Process.Start(viewModel.SearchApps[viewModel.SelectedAppIndex].FullPath);
+
+                    if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+                    {
+                        Process.Start(Path.GetDirectoryName(selectedApp.FullPath));
+                    }
+                    else Process.Start(selectedApp.FullPath);
                 }
                 catch (Exception exc)
                 {
@@ -143,21 +126,51 @@ namespace AppSearch
                     Show();
                 }
             }
-            else if (e.Key == Key.Down && viewModel?.SelectedAppIndex != -1)
+            else if (e.Key == Key.Down && selectedIndex != -1)
             {
-                viewModel.SelectedAppIndex = (viewModel.SelectedAppIndex + 1) % viewModel.SearchApps.Length;
+                viewModel.SelectedAppIndex = (selectedIndex + 1) % viewModel.SearchResult.Length;
             }
-            else if (e.Key == Key.Up && viewModel?.SelectedAppIndex != -1)
+            else if (e.Key == Key.Up && selectedIndex != -1)
             {
-                viewModel.SelectedAppIndex = (viewModel.SelectedAppIndex - 1 + viewModel.SearchApps.Length) % viewModel.SearchApps.Length;
+                viewModel.SelectedAppIndex = (selectedIndex - 1 + viewModel.SearchResult.Length) % viewModel.SearchResult.Length;
             }
             else if (e.Key == Key.Escape)
             {
                 TryHide();
             }
+            else if (e.Key == Key.Tab && selectedApp != null)
+            {
+                string path = GetShortcutTargetFile(selectedApp.FullPath);
+
+                if (File.Exists(path)) path = Path.GetDirectoryName(path);
+                if (Directory.Exists(path)) viewModel.FileSystemSearchBase = path;
+            }
             else e.Handled = false;
 
             base.OnPreviewKeyDown(e);
+        }
+
+        public static string GetShortcutTargetFile(string path)
+        {
+            string pathOnly = Path.GetDirectoryName(path);
+            string filenameOnly = Path.GetFileName(path);
+
+            Shell shell = new Shell();
+            Folder folder = shell.NameSpace(pathOnly);
+            FolderItem folderItem = folder.ParseName(filenameOnly);
+
+            if (folderItem == null) return path;
+
+            try
+            {
+                ShellLinkObject link = (ShellLinkObject)folderItem.GetLink;
+
+                return link.Path;
+            }
+            catch
+            {
+                return path;
+            }
         }
 
         private void ListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -174,12 +187,13 @@ namespace AppSearch
             showHotKey.Register();
 
             if (hideOnStartup) TryHide();
+            else KeepActivated();
         }
 
         private async void KeepActivated()
         {
             keepActivated = true;
-            
+
             while (keepActivated)
             {
                 Activate();
@@ -192,7 +206,13 @@ namespace AppSearch
         {
             keepActivated = false;
 
-            if (showHotKey.RegistrationSucessful) Hide();
+            if (showHotKey.RegistrationSucessful)
+            {
+                Hide();
+
+                viewModel.SearchKey = string.Empty;
+                viewModel.FileSystemSearchBase = null;
+            }
         }
 
         private void Window_MouseRightButtonDown(object sender, MouseButtonEventArgs e)

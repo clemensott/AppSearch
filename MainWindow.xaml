@@ -5,14 +5,21 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AppSearch"
         mc:Ignorable="d"
-        Title="Appomat" Height="450" Width="800"
-        ResizeMode="NoResize"
+        Title="Appomat"
+        ResizeMode="CanResizeWithGrip"
         Left="{Binding WindowLeft,Mode=TwoWay}"
         Top="{Binding WindowTop,Mode=TwoWay}"
+        Width="{Binding WindowWidth,Mode=TwoWay}"
+        Height="{Binding WindowHeight,Mode=TwoWay}"
         Topmost="True"
         Loaded="Window_Loaded"
         Deactivated="Window_Deactivated"
         MouseRightButtonDown="Window_MouseRightButtonDown">
+
+    <Window.Resources>
+        <local:ToDirectoryNameConverter x:Key="dirPathCon"/>
+    </Window.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -21,8 +28,8 @@
 
         <TextBox Name="tbxSearchKey" Margin="2"
                  Text="{Binding SearchKey,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
-        
-        <ListBox Grid.Row="1" ItemsSource="{Binding SearchApps}" 
+
+        <ListBox Grid.Row="1" ItemsSource="{Binding SearchResult}" 
                  SelectedIndex="{Binding SelectedAppIndex,Mode=TwoWay}"
                  SelectionChanged="ListBox_SelectionChanged">
             <ListBox.ItemTemplate>
@@ -30,6 +37,8 @@
                     <StackPanel Orientation="Horizontal">
                         <Image Source="{Binding Thumbnail}"/>
                         <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="5,0"/>
+                        <TextBlock Text="{Binding FullPath,Converter={StaticResource dirPathCon}}"
+                                   VerticalAlignment="Center" Margin="15,0,5,0"/>
                     </StackPanel>
                 </DataTemplate>
             </ListBox.ItemTemplate>
