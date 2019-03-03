@@ -28,19 +28,20 @@ namespace AppSearch
             InitializeComponent();
 
             Option showOpt = new Option("h", "hide", "Do hide window on startup.", false, 0);
-            Option sourcewOpt = new Option("s", "source", "The application sources.", true, -1, 1);
+            Option sourceOpt = new Option("s", "source", "The application sources.", true, -1, 1);
             Option keyOpt = new Option("k", "searchKey", "SearchKey set on startup", false, 1, 1);
             Option hkOpt = new Option("hk", "hotKey", "HotKey the show window", true, -1, 1);
 
-            OptionParseResult result = new Options(showOpt, sourcewOpt, keyOpt, hkOpt).Parse(Environment.GetCommandLineArgs().Skip(1));
+            OptionParseResult result = new Options(showOpt, sourceOpt, keyOpt, hkOpt)
+                .Parse(Environment.GetCommandLineArgs().Skip(1));
 
             string searchKey = string.Empty;
             OptionParsed p;
             if (result.TryGetFirstValidOptionParseds(showOpt, out p)) hideOnStartup = true;
             if (result.TryGetFirstValidOptionParseds(keyOpt, out p)) searchKey = p.Values[0];
 
-            sources = result.GetValidOptionParseds(sourcewOpt).SelectMany(o => o.Values).ToArray();
-            showHotKey = GetHotKey(result.GetValidOptionParseds(hkOpt).First());
+            sources = result.GetValidOptionParseds(sourceOpt).SelectMany(o => o.Values).ToArray();
+            showHotKey = GetHotKey(result.GetValidOptionParseds(hkOpt).First().Values);
 
             DataContext = viewModel = new ViewModel()
             {
@@ -52,13 +53,13 @@ namespace AppSearch
             UpdateAllApps();
         }
 
-        private HotKey GetHotKey(OptionParsed parsed)
+        private HotKey GetHotKey(IEnumerable<string> parts)
         {
-            string keyString = parsed.Values[0];
+            string keyString = parts.FirstOrDefault();
             int allModifier = 0;
             Key key = (Key)Enum.Parse(typeof(Key), keyString, true);
 
-            foreach (string modifierString in parsed.Values.Skip(1).Select(v => v.ToLower()))
+            foreach (string modifierString in parts.Skip(1).Select(v => v.ToLower()))
             {
                 allModifier += (int)Enum.Parse(typeof(KeyModifier), modifierString, true);
             }
@@ -132,7 +133,8 @@ namespace AppSearch
             }
             else if (e.Key == Key.Up && selectedIndex != -1)
             {
-                viewModel.SelectedAppIndex = (selectedIndex - 1 + viewModel.SearchResult.Length) % viewModel.SearchResult.Length;
+                int length = viewModel.SearchApps.Length;
+                viewModel.SelectedAppIndex = (viewModel.SelectedAppIndex - 1 + length) % length;
             }
             else if (e.Key == Key.Escape)
             {
