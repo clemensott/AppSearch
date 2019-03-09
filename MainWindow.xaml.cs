@@ -78,14 +78,14 @@ namespace AppSearch
 
         public void UpdateAllApps()
         {
-            string[] files = sources.SelectMany(a => GetFiles(a)).Where(IsNotHidden).Distinct().ToArray();
+            string[] files = sources.SelectMany(a => GetFiles(a)).Where(ViewModel.IsNotHidden).Distinct().ToArray();
 
             foreach (SearchApp app in viewModel.AllApps.Where(a => !files.Contains(a.FullPath)).ToArray())
             {
                 viewModel.AllApps.Remove(app);
             }
 
-            SearchApp[] newApps = files.Where(f => viewModel.AllApps.All(a => a.FullPath != f)).Select(f => new SearchApp(f)).ToArray();
+            SearchApp[] newApps = files.Where(f => viewModel.AllApps.All(a => a.FullPath != f)).Select(ViewModel.CreateApp).ToArray();
             foreach (SearchApp app in newApps) viewModel.AllApps.Add(app);
 
             viewModel.RaiseSearchAppsChanged();
@@ -97,16 +97,12 @@ namespace AppSearch
             else foreach (string file in Directory.GetFiles(path)) yield return file;
         }
 
-        private static bool IsNotHidden(string path)
-        {
-            return (new FileInfo(path).Attributes & FileAttributes.Hidden) == 0;
-        }
-
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             e.Handled = true;
 
             int selectedIndex = viewModel?.SelectedAppIndex ?? -1;
+            int length = viewModel.SearchResult.Length;
             SearchApp selectedApp = viewModel.SelectedApp;
 
             if (e.Key == Key.Enter && selectedApp != null)
@@ -127,13 +123,12 @@ namespace AppSearch
                     Show();
                 }
             }
-            else if (e.Key == Key.Down && selectedIndex != -1)
+            else if (e.Key == Key.Down && selectedIndex != -1 && length != 0)
             {
-                viewModel.SelectedAppIndex = (selectedIndex + 1) % viewModel.SearchResult.Length;
+                viewModel.SelectedAppIndex = (selectedIndex + 1) % length;
             }
-            else if (e.Key == Key.Up && selectedIndex != -1)
+            else if (e.Key == Key.Up && selectedIndex != -1 && length != 0)
             {
-                int length = viewModel.SearchApps.Length;
                 viewModel.SelectedAppIndex = (viewModel.SelectedAppIndex - 1 + length) % length;
             }
             else if (e.Key == Key.Escape)
@@ -215,6 +210,8 @@ namespace AppSearch
                 viewModel.SearchKey = string.Empty;
                 viewModel.FileSystemSearchBase = null;
             }
+
+            viewModel.LoadThumbnails(viewModel.AllApps.ToArray());
         }
 
         private void Window_MouseRightButtonDown(object sender, MouseButtonEventArgs e)

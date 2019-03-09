@@ -60,6 +60,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="IconsService.cs" />
     <Compile Include="SearchApp.cs" />
     <Compile Include="ToDirectoryNameConverter.cs" />
     <Compile Include="ViewModel.cs" />

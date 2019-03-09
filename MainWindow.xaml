@@ -35,7 +35,7 @@
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
-                        <Image Source="{Binding Thumbnail}"/>
+                        <Image Source="{Binding Thumbnail}" Width="32" Height="32"/>
                         <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="5,0"/>
                         <TextBlock Text="{Binding FullPath,Converter={StaticResource dirPathCon}}"
                                    VerticalAlignment="Center" Margin="15,0,5,0"/>

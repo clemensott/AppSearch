@@ -12,13 +12,14 @@ namespace AppSearch
     class ViewModel : INotifyPropertyChanged
     {
         private const int viewAppsCount = 15;
-        private const string windowRectFileName = "Position.txt";
+        private const string windowRectFileName = "Position.txt", dontShareFileName = "dontShare.txt";
         private static readonly string windowRectPath = StdOttFramework.Utils.GetFullPath(windowRectFileName);
 
         private string fileSystemSearchBase;
         private string searchKey;
         private List<SearchApp> allApps, allFileSystemApps;
         private SearchApp[] searchApps, searchFileSystemApps, searchResult;
+        private IconsService iconsService;
         private Stack<SearchApp> loadApps;
         private int selectedAppIndex;
         private double windowLeft, windowTop, windowWidth, windowHeight;
@@ -137,6 +138,7 @@ namespace AppSearch
             get { return selectedAppIndex; }
             set
             {
+                if (value != selectedAppIndex) { }
                 selectedAppIndex = value;
                 OnPropertyChanged(nameof(SelectedAppIndex));
             }
@@ -206,6 +208,19 @@ namespace AppSearch
 
         public ViewModel()
         {
+            IEnumerable<string> extensions;
+
+            try
+            {
+                string path = StdOttFramework.Utils.GetFullPath(dontShareFileName);
+                extensions = File.ReadAllLines(path);
+            }
+            catch
+            {
+                extensions = Enumerable.Empty<string>();
+            }
+
+            iconsService = new IconsService(extensions);
             loadApps = new Stack<SearchApp>();
             AllApps = new List<SearchApp>();
             AllFileSystemApps = new List<SearchApp>();
@@ -271,8 +286,8 @@ namespace AppSearch
                         if (basePath != FileSystemSearchBase) return;
 
                         string dir = dirs.Dequeue();
-                        string[] addFiles = Directory.GetFiles(dir);
-                        string[] addDirs = Directory.GetDirectories(dir);
+                        string[] addFiles = Directory.GetFiles(dir).Where(IsNotHidden).ToArray();
+                        string[] addDirs = Directory.GetDirectories(dir).Where(IsNotHidden).ToArray();
 
                         if (basePath != FileSystemSearchBase) return;
 
@@ -280,8 +295,8 @@ namespace AppSearch
 
                         lock (AllFileSystemApps)
                         {
-                            AllFileSystemApps.AddRange(addFiles.Select(f => new SearchApp(f)));
-                            AllFileSystemApps.AddRange(addDirs.Select(d => new SearchApp(d)));
+                            AllFileSystemApps.AddRange(addFiles.Select(CreateApp));
+                            AllFileSystemApps.AddRange(addDirs.Select(CreateApp));
                         }
 
                         searchFileSystemApps = GetSearchResult(AllFileSystemApps, SearchKey);
@@ -310,23 +325,49 @@ namespace AppSearch
             } while (!producerTask.IsCompleted);
         }
 
-        private async void LoadThumbnails(SearchApp[] apps)
+        public static bool IsNotHidden(string path)
+        {
+            return (new FileInfo(path).Attributes & FileAttributes.Hidden) == 0;
+        }
+
+        public static SearchApp CreateApp(string path)
+        {
+            return new SearchApp(path)
+            {
+                Thumbnail = IconsService.GetGenericIcon(path)
+            };
+        }
+
+        public async void LoadThumbnails(SearchApp[] apps)
         {
             await Task.Delay(100);
 
-            bool wasEmpty = loadApps.Count == 0;
+            for (int i = 0; i < apps.Length && apps == SearchResult; i++)
+            {
+                await LoadThumbnail(apps[i], 40);
+            }
+
             for (int i = apps.Length - 1; i >= 0; i--)
             {
-                if (!apps[i].IsThumbnailLoaded) loadApps.Push(apps[i]);
+                if (!IsThumbnailLoaded(apps[i])) loadApps.Push(apps[i]);
             }
 
-            if (!wasEmpty) return;
-
-            while (loadApps.Count > 0)
+            while (loadApps.Count > 0 && apps == SearchResult)
             {
-                loadApps.Pop().LoadThumbnail();
-                await Task.Delay(40);
+                await LoadThumbnail(loadApps.Pop(), 100);
             }
+        }
+
+        public async Task LoadThumbnail(SearchApp app, int delay)
+        {
+            if (IsThumbnailLoaded(app)) return;
+
+            app.Thumbnail = await iconsService.GetIcon(app.FullPath, delay);
+        }
+
+        private static bool IsThumbnailLoaded(SearchApp app)
+        {
+            return app.Thumbnail != IconsService.GenericFileIcon;
         }
 
         private async void SaveWindowRect()
@@ -354,8 +395,6 @@ namespace AppSearch
         {
             OnPropertyChanged(nameof(SearchApps));
             if (!IsFileSystemSearching) SearchResult = SearchApps;
-
-            LoadThumbnails(AllApps.ToArray());
         }
 
         public void RaiseFileSystemSearchAppsChanged()
