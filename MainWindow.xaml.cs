@@ -64,7 +64,7 @@ namespace AppSearch
                 allModifier += (int)Enum.Parse(typeof(KeyModifier), modifierString, true);
             }
 
-            return new HotKey(key, (KeyModifier)allModifier);
+            return HotKey.GetInstance(key, (KeyModifier)allModifier);
         }
 
         private void ShowHotKey_PressedAsync(object sender, KeyPressedEventArgs e)
@@ -105,21 +105,25 @@ namespace AppSearch
             int length = viewModel.SearchResult.Length;
             SearchApp selectedApp = viewModel.SelectedApp;
 
-            if (e.Key == Key.Enter && selectedApp != null)
+            if (e.Key == Key.Enter && (selectedApp != null || !string.IsNullOrWhiteSpace(viewModel.FileSystemSearchBase)))
             {
+                string path = selectedApp?.FullPath ?? viewModel.FileSystemSearchBase;
+
                 try
                 {
                     TryHide();
 
                     if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
                     {
-                        Process.Start(Path.GetDirectoryName(selectedApp.FullPath));
+                        string args = string.Format("/select,\"{0}\"", path);
+                        Process.Start("explorer.exe", args);
                     }
-                    else Process.Start(selectedApp.FullPath);
+                    else Process.Start(path);
                 }
                 catch (Exception exc)
                 {
-                    MessageBox.Show(exc.ToString(), "Process starting error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    string message = string.Format("Path: {0}\r\n{1}", path, exc);
+                    MessageBox.Show(message, "Process starting error", MessageBoxButton.OK, MessageBoxImage.Error);
                     Show();
                 }
             }
@@ -203,7 +207,7 @@ namespace AppSearch
         {
             keepActivated = false;
 
-            if (showHotKey.RegistrationSucessful)
+            if (showHotKey.IsRegistrated)
             {
                 Hide();
 
