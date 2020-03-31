@@ -1,4 +1,5 @@
 ﻿using StdOttStandard;
+using StdOttFramework;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -9,24 +10,24 @@ using System.Threading.Tasks;
 
 namespace AppSearch
 {
-    class ViewModel : INotifyPropertyChanged
+    internal class ViewModel : INotifyPropertyChanged
     {
         private const int viewAppsCount = 15;
         private const string windowRectFileName = "Position.txt", dontShareFileName = "dontShare.txt";
-        private static readonly string windowRectPath = StdOttFramework.Utils.GetFullPath(windowRectFileName);
+        private static readonly string windowRectPath = FrameworkUtils.GetFullPath(windowRectFileName);
 
         private string fileSystemSearchBase;
         private string searchKey;
         private List<SearchApp> allApps, allFileSystemApps;
         private SearchApp[] searchApps, searchFileSystemApps, searchResult;
-        private IconsService iconsService;
-        private Stack<SearchApp> loadApps;
+        private readonly IconsService iconsService;
+        private readonly Stack<SearchApp> loadApps;
         private int selectedAppIndex;
         private double windowLeft, windowTop, windowWidth, windowHeight;
 
         public string FileSystemSearchBase
         {
-            get { return fileSystemSearchBase; }
+            get => fileSystemSearchBase;
             set
             {
                 if (value == fileSystemSearchBase) return;
@@ -46,7 +47,7 @@ namespace AppSearch
 
         public string SearchKey
         {
-            get { return searchKey; }
+            get => searchKey;
             set
             {
                 if (value == searchKey) return;
@@ -63,7 +64,7 @@ namespace AppSearch
 
         public List<SearchApp> AllApps
         {
-            get { return allApps; }
+            get => allApps;
             private set
             {
                 if (value == allApps) return;
@@ -77,7 +78,7 @@ namespace AppSearch
 
         public SearchApp[] SearchApps
         {
-            get { return searchApps; }
+            get => searchApps;
             private set
             {
                 if (value.BothNullOrSequenceEqual(searchApps)) return;
@@ -89,7 +90,7 @@ namespace AppSearch
 
         public List<SearchApp> AllFileSystemApps
         {
-            get { return allFileSystemApps; }
+            get => allFileSystemApps;
             set
             {
                 if (value == allFileSystemApps) return;
@@ -103,7 +104,7 @@ namespace AppSearch
 
         public SearchApp[] SearchFileSystemApps
         {
-            get { return searchFileSystemApps; }
+            get => searchFileSystemApps;
             set
             {
                 if (value.BothNullOrSequenceEqual(searchFileSystemApps)) return;
@@ -115,7 +116,7 @@ namespace AppSearch
 
         public SearchApp[] SearchResult
         {
-            get { return searchResult; }
+            get => searchResult;
             set
             {
                 if (value.BothNullOrSequenceEqual(searchResult)) return;
@@ -135,10 +136,11 @@ namespace AppSearch
 
         public int SelectedAppIndex
         {
-            get { return selectedAppIndex; }
+            get => selectedAppIndex;
             set
             {
-                if (value != selectedAppIndex) { }
+                if (value == selectedAppIndex) return;
+
                 selectedAppIndex = value;
                 OnPropertyChanged(nameof(SelectedAppIndex));
             }
@@ -148,7 +150,7 @@ namespace AppSearch
 
         public double WindowLeft
         {
-            get { return windowLeft; }
+            get => windowLeft;
             set
             {
                 if (value != windowLeft)
@@ -163,7 +165,7 @@ namespace AppSearch
 
         public double WindowTop
         {
-            get { return windowTop; }
+            get => windowTop;
             set
             {
                 if (value != windowTop)
@@ -178,7 +180,7 @@ namespace AppSearch
 
         public double WindowWidth
         {
-            get { return windowWidth; }
+            get => windowWidth;
             set
             {
                 if (value != windowWidth)
@@ -193,7 +195,7 @@ namespace AppSearch
 
         public double WindowHeight
         {
-            get { return windowHeight; }
+            get => windowHeight;
             set
             {
                 if (value != windowHeight)
@@ -212,7 +214,7 @@ namespace AppSearch
 
             try
             {
-                string path = StdOttFramework.Utils.GetFullPath(dontShareFileName);
+                string path = FrameworkUtils.GetFullPath(dontShareFileName);
                 extensions = File.ReadAllLines(path);
             }
             catch
@@ -260,7 +262,7 @@ namespace AppSearch
                 lock (src)
                 {
                     return src?.Where(a => a.Name.ToLower().Contains(searchKey.ToLower())).Take(viewAppsCount)
-                        .OrderBy(a => a.Name.ToLower().IndexOf(searchKey.ToLower())).ToArray();
+                        .OrderBy(a => a.Name.ToLower().IndexOf(searchKey, StringComparison.OrdinalIgnoreCase)).ToArray();
                 }
             }
             else return new SearchApp[0];
@@ -295,8 +297,8 @@ namespace AppSearch
 
                         lock (AllFileSystemApps)
                         {
-                            AllFileSystemApps.AddRange(addFiles.Select(CreateApp));
-                            AllFileSystemApps.AddRange(addDirs.Select(CreateApp));
+                            AllFileSystemApps.AddRange(addFiles.Select(CreateFileApp));
+                            AllFileSystemApps.AddRange(addDirs.Select(CreateFolderApp));
                         }
 
                         searchFileSystemApps = GetSearchResult(AllFileSystemApps, SearchKey);
@@ -317,7 +319,7 @@ namespace AppSearch
 
             do
             {
-                await Task.WhenAny(Utils.WaitAsync(lockObj), producerTask);
+                await Task.WhenAny(StdUtils.WaitAsync(lockObj), producerTask);
 
                 if (searchFileSystemApps == null || basePath != FileSystemSearchBase) continue;
 
@@ -330,11 +332,19 @@ namespace AppSearch
             return (new FileInfo(path).Attributes & FileAttributes.Hidden) == 0;
         }
 
-        public static SearchApp CreateApp(string path)
+        public static SearchApp CreateFileApp(string path)
         {
             return new SearchApp(path)
             {
-                Thumbnail = IconsService.GetGenericIcon(path)
+                Thumbnail = IconsService.GenericFileIcon,
+            };
+        }
+
+        public static SearchApp CreateFolderApp(string path)
+        {
+            return new SearchApp(path)
+            {
+                Thumbnail = IconsService.GenericFolderIcon,
             };
         }
 
@@ -385,7 +395,7 @@ namespace AppSearch
         {
             try
             {
-                string[] lines = new string[] { left.ToString(), top.ToString(), width.ToString(), height.ToString() };
+                string[] lines = new string[] {left.ToString(), top.ToString(), width.ToString(), height.ToString()};
                 File.WriteAllLines(windowRectPath, lines);
             }
             catch { }

@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
+﻿using System.ComponentModel;
 using System.IO;
 using System.Windows.Media.Imaging;
 
@@ -13,7 +11,7 @@ namespace AppSearch
 
         public BitmapSource Thumbnail
         {
-            get { return thumbnail; }
+            get => thumbnail;
             set
             {
                 if (value == thumbnail) return;
@@ -25,7 +23,7 @@ namespace AppSearch
 
         public string FullPath
         {
-            get { return fullPath; }
+            get => fullPath;
             private set
             {
                 if (value == fullPath) return;
@@ -37,7 +35,7 @@ namespace AppSearch
 
         public string Name
         {
-            get { return name; }
+            get => name;
             private set
             {
                 if (value == name) return;

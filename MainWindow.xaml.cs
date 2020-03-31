@@ -1,6 +1,6 @@
 ﻿using Shell32;
 using StdOttFramework.Hotkey;
-using StdOttStandard.CommendlinePaser;
+using StdOttStandard.CommandlineParser;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -18,10 +18,11 @@ namespace AppSearch
     /// </summary>
     public partial class MainWindow : Window
     {
-        private bool hideOnStartup, keepActivated;
-        private string[] sources;
-        private ViewModel viewModel;
-        private HotKey showHotKey;
+        private readonly bool hideOnStartup;
+        private bool keepActivated;
+        private readonly string[] sources;
+        private readonly ViewModel viewModel;
+        private readonly HotKey showHotKey;
 
         public MainWindow()
         {
@@ -53,16 +54,13 @@ namespace AppSearch
             UpdateAllApps();
         }
 
-        private HotKey GetHotKey(IEnumerable<string> parts)
+        private static HotKey GetHotKey(IList<string> parts)
         {
-            string keyString = parts.FirstOrDefault();
-            int allModifier = 0;
+            string keyString = parts[0];
             Key key = (Key)Enum.Parse(typeof(Key), keyString, true);
 
-            foreach (string modifierString in parts.Skip(1).Select(v => v.ToLower()))
-            {
-                allModifier += (int)Enum.Parse(typeof(KeyModifier), modifierString, true);
-            }
+            int allModifier = parts.Skip(1).Select(v => v.ToLower())
+                .Sum(modifierString => (int)Enum.Parse(typeof(KeyModifier), modifierString, true));
 
             return HotKey.GetInstance(key, (KeyModifier)allModifier);
         }
@@ -76,16 +74,17 @@ namespace AppSearch
             UpdateAllApps();
         }
 
-        public void UpdateAllApps()
+        private void UpdateAllApps()
         {
-            string[] files = sources.SelectMany(a => GetFiles(a)).Where(ViewModel.IsNotHidden).Distinct().ToArray();
+            string[] files = sources.SelectMany(GetFiles).Where(ViewModel.IsNotHidden).Distinct().ToArray();
 
             foreach (SearchApp app in viewModel.AllApps.Where(a => !files.Contains(a.FullPath)).ToArray())
             {
                 viewModel.AllApps.Remove(app);
             }
 
-            SearchApp[] newApps = files.Where(f => viewModel.AllApps.All(a => a.FullPath != f)).Select(ViewModel.CreateApp).ToArray();
+            SearchApp[] newApps = files.Where(f => viewModel.AllApps.All(a => a.FullPath != f))
+                .Select(ViewModel.CreateFileApp).ToArray();
             foreach (SearchApp app in newApps) viewModel.AllApps.Add(app);
 
             viewModel.RaiseSearchAppsChanged();
@@ -94,7 +93,9 @@ namespace AppSearch
         private static IEnumerable<string> GetFiles(string path)
         {
             if (File.Exists(path)) yield return path;
-            else foreach (string file in Directory.GetFiles(path)) yield return file;
+            else
+                foreach (string file in Directory.GetFiles(path))
+                    yield return file;
         }
 
         protected override void OnPreviewKeyDown(KeyEventArgs e)
@@ -105,7 +106,8 @@ namespace AppSearch
             int length = viewModel.SearchResult.Length;
             SearchApp selectedApp = viewModel.SelectedApp;
 
-            if (e.Key == Key.Enter && (selectedApp != null || !string.IsNullOrWhiteSpace(viewModel.FileSystemSearchBase)))
+            if (e.Key == Key.Enter &&
+                (selectedApp != null || !string.IsNullOrWhiteSpace(viewModel.FileSystemSearchBase)))
             {
                 string path = selectedApp?.FullPath ?? viewModel.FileSystemSearchBase;
 
@@ -115,14 +117,14 @@ namespace AppSearch
 
                     if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
                     {
-                        string args = string.Format("/select,\"{0}\"", path);
+                        string args = $"/select,\"{path}\"";
                         Process.Start("explorer.exe", args);
                     }
                     else Process.Start(path);
                 }
                 catch (Exception exc)
                 {
-                    string message = string.Format("Path: {0}\r\n{1}", path, exc);
+                    string message = $"Path: {path}\r\n{exc}";
                     MessageBox.Show(message, "Process starting error", MessageBoxButton.OK, MessageBoxImage.Error);
                     Show();
                 }
@@ -151,7 +153,7 @@ namespace AppSearch
             base.OnPreviewKeyDown(e);
         }
 
-        public static string GetShortcutTargetFile(string path)
+        private static string GetShortcutTargetFile(string path)
         {
             string pathOnly = Path.GetDirectoryName(path);
             string filenameOnly = Path.GetFileName(path);

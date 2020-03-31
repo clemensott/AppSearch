@@ -10,48 +10,27 @@ using System.Windows.Media.Imaging;
 
 namespace AppSearch
 {
-    class IconsService
+    internal class IconsService
     {
-        private static readonly object fileThumbnailLockObj = new object(), folderThumbnailLockObj = new object();
-        private static BitmapSource fileIco, folderIco;
+        public static BitmapSource GenericFileIcon { get; private set; }
 
-        public static BitmapSource GenericFileIcon
+        public static BitmapSource GenericFolderIcon { get; private set; }
+
+        private static void SetGenericFileIcon()
         {
-            get
-            {
-                if (fileIco != null) return fileIco;
-
-                lock (fileThumbnailLockObj)
-                {
-                    if (fileIco != null) return fileIco;
-
-                    fileIco = LoadPicture("genericFileThumbnail.png");
-
-                    return fileIco;
-                }
-            }
+            GenericFileIcon = LoadPicture("genericFileThumbnail.png");
         }
 
-        public static BitmapSource GenericFolderIcon
+        private static void SetGenericFolderIcon()
         {
-            get
-            {
-                if (folderIco != null) return folderIco;
-
-                lock (folderThumbnailLockObj)
-                {
-                    if (folderIco != null) return folderIco;
-
-                    return folderIco = LoadPicture("genericFolderThumbnail.png");
-                }
-            }
+            GenericFolderIcon = LoadPicture("genericFolderThumbnail.png");
         }
 
         private static BitmapImage LoadPicture(string fileName)
         {
             try
             {
-                string path = Utils.GetFullPath(fileName);
+                string path = FrameworkUtils.GetFullPath(fileName);
                 return new BitmapImage(new Uri(path));
             }
             catch
@@ -65,12 +44,12 @@ namespace AppSearch
             return File.Exists(path) ? GenericFileIcon : GenericFolderIcon;
         }
 
-        private Dictionary<string, BitmapSource> icons;
+        private readonly Dictionary<string, BitmapSource> icons;
 
         public IconsService(IEnumerable<string> dontShare)
         {
-            BitmapSource file = GenericFileIcon;
-            BitmapSource folder = GenericFolderIcon;
+            SetGenericFileIcon();
+            SetGenericFolderIcon();
 
             icons = new Dictionary<string, BitmapSource>();
 
@@ -87,8 +66,8 @@ namespace AppSearch
         public async Task<BitmapSource> GetIcon(string path, int delay)
         {
             BitmapSource bmp;
-            string extension = Path.GetExtension(path).ToLower();
-            
+            string extension = Path.GetExtension(path)?.ToLower() ?? string.Empty;
+
             if (!icons.TryGetValue(extension, out bmp))
             {
                 bmp = LoadIcon(path);
@@ -106,10 +85,10 @@ namespace AppSearch
 
         public static BitmapSource LoadIcon(string path)
         {
-            using (Icon sysicon = Icon.ExtractAssociatedIcon(path))
+            using (Icon icon = Icon.ExtractAssociatedIcon(path))
             {
-                return Imaging.CreateBitmapSourceFromHIcon(sysicon.Handle,
-                     Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                return Imaging.CreateBitmapSourceFromHIcon(icon.Handle,
+                    Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
             }
         }
     }
