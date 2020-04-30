@@ -30,7 +30,7 @@ namespace AppSearch
         {
             try
             {
-                string path = FrameworkUtils.GetFullPath(fileName);
+                string path = FrameworkUtils.GetFullPathToExe(fileName);
                 return new BitmapImage(new Uri(path));
             }
             catch

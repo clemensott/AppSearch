@@ -153,7 +153,7 @@ namespace AppSearch
 
             try
             {
-                string path = FrameworkUtils.GetFullPath(dontShareFileName);
+                string path = FrameworkUtils.GetFullPathToExe(dontShareFileName);
                 extensions = File.ReadAllLines(path);
             }
             catch
