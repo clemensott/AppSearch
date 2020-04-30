@@ -1,5 +1,6 @@
 ﻿using Shell32;
 using StdOttFramework.Hotkey;
+using StdOttFramework.RestoreWindow;
 using StdOttStandard.CommandlineParser;
 using System;
 using System.Collections.Generic;
@@ -23,10 +24,14 @@ namespace AppSearch
         private readonly string[] sources;
         private readonly ViewModel viewModel;
         private readonly HotKey showHotKey;
+        private readonly RestoreWindowHandler restoreHandler;
 
         public MainWindow()
         {
             InitializeComponent();
+
+            RestoreWindowSettings restoreSettings = RestoreWindowSettings.GetDefault(triggerType: StorePropertiesTriggerType.Manuel);
+            restoreHandler = RestoreWindowHandler.Activate(this, restoreSettings);
 
             Option showOpt = new Option("h", "hide", "Do hide window on startup.", false, 0);
             Option sourceOpt = new Option("s", "source", "The application sources.", true, -1, 1);
@@ -72,6 +77,7 @@ namespace AppSearch
             KeepActivated();
 
             UpdateAllApps();
+            restoreHandler.Restore();
         }
 
         private void UpdateAllApps()
@@ -94,8 +100,12 @@ namespace AppSearch
         {
             if (File.Exists(path)) yield return path;
             else
+            {
                 foreach (string file in Directory.GetFiles(path))
+                {
                     yield return file;
+                }
+            }
         }
 
         protected override void OnPreviewKeyDown(KeyEventArgs e)
@@ -174,6 +184,11 @@ namespace AppSearch
             {
                 return path;
             }
+        }
+
+        private void BtnSavePosition_Click(object sender, RoutedEventArgs e)
+        {
+            restoreHandler.Store();
         }
 
         private void ListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

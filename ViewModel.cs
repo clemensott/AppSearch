@@ -14,8 +14,7 @@ namespace AppSearch
     internal class ViewModel : INotifyPropertyChanged
     {
         private const int viewAppsCount = 15;
-        private const string windowRectFileName = "Position.txt", dontShareFileName = "dontShare.txt";
-        private static readonly string windowRectPath = FrameworkUtils.GetFullPath(windowRectFileName);
+        private const string dontShareFileName = "dontShare.txt";
 
         private string fileSystemSearchBase;
         private string searchKey;
@@ -24,7 +23,6 @@ namespace AppSearch
         private readonly IconsService iconsService;
         private readonly Stack<SearchApp> loadApps;
         private int selectedAppIndex;
-        private double windowLeft, windowTop, windowWidth, windowHeight;
 
         public string FileSystemSearchBase
         {
@@ -149,66 +147,6 @@ namespace AppSearch
 
         public SearchApp SelectedApp => SearchResult.ElementAtOrDefault(SelectedAppIndex);
 
-        public double WindowLeft
-        {
-            get => windowLeft;
-            set
-            {
-                if (value != windowLeft)
-                {
-                    windowLeft = value;
-                    OnPropertyChanged(nameof(WindowLeft));
-                }
-
-                SaveWindowRect();
-            }
-        }
-
-        public double WindowTop
-        {
-            get => windowTop;
-            set
-            {
-                if (value != windowTop)
-                {
-                    windowTop = value;
-                    OnPropertyChanged(nameof(WindowTop));
-                }
-
-                SaveWindowRect();
-            }
-        }
-
-        public double WindowWidth
-        {
-            get => windowWidth;
-            set
-            {
-                if (value != windowWidth)
-                {
-                    windowWidth = value;
-                    OnPropertyChanged(nameof(WindowWidth));
-                }
-
-                SaveWindowRect();
-            }
-        }
-
-        public double WindowHeight
-        {
-            get => windowHeight;
-            set
-            {
-                if (value != windowHeight)
-                {
-                    windowHeight = value;
-                    OnPropertyChanged(nameof(WindowHeight));
-                }
-
-                SaveWindowRect();
-            }
-        }
-
         public ViewModel()
         {
             IEnumerable<string> extensions;
@@ -227,23 +165,6 @@ namespace AppSearch
             loadApps = new Stack<SearchApp>();
             AllApps = new List<SearchApp>();
             AllFileSystemApps = new List<SearchApp>();
-
-            try
-            {
-                string[] pos = File.ReadAllLines(windowRectPath);
-
-                WindowLeft = int.Parse(pos[0]);
-                WindowTop = int.Parse(pos[1]);
-                WindowWidth = int.Parse(pos[2]);
-                WindowHeight = int.Parse(pos[3]);
-            }
-            catch
-            {
-                WindowLeft = 100;
-                WindowTop = 100;
-                windowWidth = 1000;
-                WindowHeight = 500;
-            }
         }
 
         private void UpdateSearchApps()
@@ -379,27 +300,6 @@ namespace AppSearch
         private static bool IsThumbnailLoaded(SearchApp app)
         {
             return app.Thumbnail != IconsService.GenericFileIcon;
-        }
-
-        private async void SaveWindowRect()
-        {
-            double left = WindowLeft, top = WindowTop;
-
-            await Task.Delay(200);
-
-            if (left != WindowLeft || top != WindowTop) return;
-
-            SaveWindowRect(windowRectPath, (int)WindowLeft, (int)WindowTop, (int)WindowWidth, (int)WindowHeight);
-        }
-
-        private static void SaveWindowRect(string path, int left, int top, int width, int height)
-        {
-            try
-            {
-                string[] lines = new string[] {left.ToString(), top.ToString(), width.ToString(), height.ToString()};
-                File.WriteAllLines(windowRectPath, lines);
-            }
-            catch { }
         }
 
         public void RaiseSearchAppsChanged()
