@@ -18,12 +18,12 @@ namespace AppSearch
 
         private static void SetGenericFileIcon()
         {
-            GenericFileIcon = LoadPicture("genericFileThumbnail.png");
+            GenericFileIcon = LoadPicture(@"Assets\genericFileThumbnail.png");
         }
 
         private static void SetGenericFolderIcon()
         {
-            GenericFolderIcon = LoadPicture("genericFolderThumbnail.png");
+            GenericFolderIcon = LoadPicture(@"Assets\genericFolderThumbnail.png");
         }
 
         private static BitmapImage LoadPicture(string fileName)
@@ -57,7 +57,7 @@ namespace AppSearch
             {
                 foreach (string extension in dontShare)
                 {
-                    icons.Add(extension.ToLower(), null);
+                    if (!string.IsNullOrWhiteSpace(extension)) icons.Add(extension.ToLower(), null);
                 }
             }
             catch { }
