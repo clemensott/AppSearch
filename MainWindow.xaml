@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AppSearch"
+        xmlns:con="clr-namespace:StdOttFramework.Converters;assembly=StdOttFrameworkLib"
         mc:Ignorable="d"
         Title="Appomat"
         ResizeMode="CanResizeWithGrip"
@@ -14,6 +15,7 @@
 
     <Window.Resources>
         <local:ToDirectoryNameConverter x:Key="dirPathCon"/>
+        <con:VisibleCollapsedConverter x:Key="visCon"/>
     </Window.Resources>
 
     <Grid>
@@ -47,5 +49,13 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+
+        <Grid Grid.ColumnSpan="2" Grid.RowSpan="2" Background="White"
+              Visibility="{Binding IsWinKeyDown,Converter={StaticResource visCon}}">
+            <TextBlock VerticalAlignment="Center" HorizontalAlignment="Center"
+                       FontSize="20" FontWeight="Bold">
+                WIN-Key is pressed!!!
+            </TextBlock>
+        </Grid>
     </Grid>
 </Window>

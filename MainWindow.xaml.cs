@@ -30,6 +30,7 @@ namespace AppSearch
         {
             InitializeComponent();
 
+
             RestoreWindowSettings restoreSettings = RestoreWindowSettings.GetDefault(triggerType: StorePropertiesTriggerType.Manuel);
             restoreHandler = RestoreWindowHandler.Activate(this, restoreSettings);
 
@@ -215,8 +216,20 @@ namespace AppSearch
             while (keepActivated)
             {
                 Activate();
+                CheckWinKey();
 
                 await Task.Delay(100);
+            }
+        }
+
+        private void CheckWinKey()
+        {
+            bool wasWinKeyDown = viewModel.IsWinKeyDown;
+            viewModel.IsWinKeyDown = Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin);
+
+            if (!viewModel.IsWinKeyDown && wasWinKeyDown)
+            {
+                tbxSearchKey.Focus();
             }
         }
 

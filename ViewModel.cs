@@ -16,6 +16,7 @@ namespace AppSearch
         private const int viewAppsCount = 15;
         private const string dontShareFileName = "dontShare.txt";
 
+        private bool isWinKeyDown;
         private string fileSystemSearchBase;
         private string searchKey;
         private List<SearchApp> allApps, allFileSystemApps;
@@ -23,6 +24,18 @@ namespace AppSearch
         private readonly IconsService iconsService;
         private readonly Stack<SearchApp> loadApps;
         private int selectedAppIndex;
+
+        public bool IsWinKeyDown
+        {
+            get => isWinKeyDown;
+            set
+            {
+                if (value == isWinKeyDown) return;
+
+                isWinKeyDown = value;
+                OnPropertyChanged(nameof(IsWinKeyDown));
+            }
+        }
 
         public string FileSystemSearchBase
         {
