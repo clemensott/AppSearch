@@ -37,8 +37,7 @@
     <Prefer32bit>false</Prefer32bit>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>
-    </ApplicationIcon>
+    <ApplicationIcon>Ampeross-Qetto-2-Search.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
@@ -149,6 +148,7 @@
     <Resource Include="Assets\Ampeross-Qetto-2-Search.ico" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="Ampeross-Qetto-2-Search.ico" />
     <Content Include="Assets\genericFileThumbnail.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
